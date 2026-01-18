@@ -1,138 +1,140 @@
 # Ascend Docker Kit (ADK)
 
-华为昇腾 NPU 环境的 DevOps 工具包，自动化 Docker 环境配置，解决 CANN/驱动/框架版本兼容性问题。
+A DevOps toolkit for Huawei Ascend NPU environments that automates Docker environment configuration and resolves CANN/driver/framework version compatibility issues.
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
 
+[中文文档](README.zh-CN.md)
+
 ---
 
-## 项目简介
+## Overview
 
-在昇腾 NPU 环境中，CANN 版本、驱动版本、PyTorch/MindSpore 版本之间存在复杂的依赖关系。ADK 通过以下核心功能解决这个问题：
+In Ascend NPU environments, complex dependencies exist between CANN versions, driver versions, and PyTorch/MindSpore versions. ADK solves this problem through the following core features:
 
-- **兼容性矩阵库**：将华为官方文档中分散的版本兼容信息结构化为单一数据源
-- **环境诊断器**：自动探测宿主机环境（NPU 型号、驱动版本、操作系统）
-- **智能推荐**：根据当前环境自动推荐兼容的 CANN 和框架版本
+- **Compatibility Matrix**: Structures scattered version compatibility information from Huawei's official documentation into a single source of truth
+- **Environment Analyzer**: Automatically detects host environment (NPU model, driver version, OS)
+- **Smart Recommendations**: Automatically recommends compatible CANN and framework versions based on current environment
 
-## 功能特性
+## Features
 
-| 功能 | 描述 |
-|------|------|
-| 环境探测 | 自动检测 NPU 型号（910A/910B/310P）、驱动版本、OS 发行版 |
-| 兼容性验证 | 校验当前环境是否支持目标 CANN 版本 |
-| 版本推荐 | 根据驱动版本推荐最佳 CANN 和框架组合 |
-| 框架配置 | 获取 PyTorch/MindSpore 对应的 torch_npu 版本和安装方式 |
+| Feature | Description |
+|---------|-------------|
+| Environment Detection | Auto-detect NPU model (910A/910B/310P), driver version, OS distribution |
+| Compatibility Validation | Verify if current environment supports target CANN version |
+| Version Recommendation | Recommend optimal CANN and framework combinations based on driver version |
+| Framework Configuration | Get torch_npu version and installation method for PyTorch/MindSpore |
 
-### 支持的环境
+### Supported Environments
 
-**NPU 型号**：Atlas 910A / 910B / 910B2 / 910B3 / 310P / 310
+**NPU Models**: Atlas 910A / 910B / 910B2 / 910B3 / 310P / 310
 
-**操作系统**：Ubuntu 20.04/22.04/24.04、openEuler 22.03/24.03、Kylin V10
+**Operating Systems**: Ubuntu 20.04/22.04/24.04, openEuler 22.03/24.03, Kylin V10
 
-**CPU 架构**：x86_64、aarch64
+**CPU Architectures**: x86_64, aarch64
 
-## 快速开始
+## Quick Start
 
-### 安装
+### Installation
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/yourorg/ascend-docker-kit.git
 cd ascend-docker-kit
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 基本使用
+### Basic Usage
 
-#### 1. 探测宿主机环境
+#### 1. Detect Host Environment
 
 ```python
 from adk_core import EnvironmentAnalyzer
 
-# 自动探测环境
+# Auto-detect environment
 env = EnvironmentAnalyzer.analyze()
 
-print(f"操作系统: {env.os_name}")
-print(f"CPU 架构: {env.arch}")
-print(f"NPU 型号: {env.npu_type}")
-print(f"NPU 数量: {env.npu_count}")
-print(f"驱动版本: {env.driver_version}")
+print(f"OS: {env.os_name}")
+print(f"CPU Architecture: {env.arch}")
+print(f"NPU Model: {env.npu_type}")
+print(f"NPU Count: {env.npu_count}")
+print(f"Driver Version: {env.driver_version}")
 ```
 
-输出示例：
+Example output:
 ```
-操作系统: ubuntu22.04
-CPU 架构: x86_64
-NPU 型号: 910B
-NPU 数量: 8
-驱动版本: 24.1.rc1
+OS: ubuntu22.04
+CPU Architecture: x86_64
+NPU Model: 910B
+NPU Count: 8
+Driver Version: 24.1.rc1
 ```
 
-#### 2. 验证环境兼容性
+#### 2. Validate Environment Compatibility
 
 ```python
 from adk_core import EnvironmentAnalyzer, CompatibilityResolver
 
-# 探测环境
+# Detect environment
 env = EnvironmentAnalyzer.analyze()
 
-# 加载兼容性矩阵
+# Load compatibility matrix
 resolver = CompatibilityResolver.from_yaml('data/compatibility.yaml')
 
-# 验证兼容性
+# Validate compatibility
 result = resolver.validate_environment(env)
 
 if result.valid:
-    print(f"兼容的 CANN 版本: {result.compatible_cann_versions}")
+    print(f"Compatible CANN versions: {result.compatible_cann_versions}")
 else:
-    print(f"错误: {result.errors}")
+    print(f"Errors: {result.errors}")
 ```
 
-#### 3. 查询框架配置
+#### 3. Query Framework Configuration
 
 ```python
 from adk_core import CompatibilityResolver
 
 resolver = CompatibilityResolver.from_yaml('data/compatibility.yaml')
 
-# 获取 CANN 8.0.0 的 PyTorch 配置
+# Get PyTorch configuration for CANN 8.0.0
 config = resolver.get_framework_config("8.0.0", "pytorch")
 
-print(f"PyTorch 版本: {config.version}")
-print(f"torch_npu 版本: {config.torch_npu_version}")
-print(f"支持的 Python 版本: {config.python_versions}")
-print(f"下载地址: {config.whl_url}")
+print(f"PyTorch Version: {config.version}")
+print(f"torch_npu Version: {config.torch_npu_version}")
+print(f"Supported Python Versions: {config.python_versions}")
+print(f"Download URL: {config.whl_url}")
 ```
 
-#### 4. 获取推荐版本
+#### 4. Get Recommended Versions
 
 ```python
 from adk_core import CompatibilityResolver
 
 resolver = CompatibilityResolver.from_yaml('data/compatibility.yaml')
 
-# 根据驱动版本获取推荐的 CANN 版本
+# Get recommended CANN version based on driver version
 recommended = resolver.get_recommended_cann(
     driver_version="24.1.0",
     os_name="ubuntu22.04",
     npu_type="910B"
 )
 
-print(f"推荐 CANN 版本: {recommended}")  # 8.0.0
+print(f"Recommended CANN Version: {recommended}")  # 8.0.0
 ```
 
-### Shell 脚本探测
+### Shell Script Detection
 
-也可以直接使用 Shell 脚本探测 NPU 信息：
+You can also use the shell script to detect NPU information directly:
 
 ```bash
 bash scripts/check_npu.sh
 ```
 
-输出 JSON 格式：
+JSON output:
 ```json
 {
   "status": "ok",
@@ -142,116 +144,116 @@ bash scripts/check_npu.sh
 }
 ```
 
-## API 参考
+## API Reference
 
 ### EnvironmentAnalyzer
 
-环境探测器，用于检测宿主机环境信息。
+Environment detector for detecting host environment information.
 
-| 方法 | 描述 | 返回值 |
-|------|------|--------|
-| `analyze()` | 完整环境探测 | `EnvironmentInfo` |
-| `analyze_safe()` | 安全模式（不抛异常） | `(EnvironmentInfo, List[str])` |
-| `detect_os()` | 检测操作系统 | `str` |
-| `detect_arch()` | 检测 CPU 架构 | `str` |
-| `detect_npu()` | 检测 NPU 信息 | `Dict` |
+| Method | Description | Return Value |
+|--------|-------------|--------------|
+| `analyze()` | Full environment detection | `EnvironmentInfo` |
+| `analyze_safe()` | Safe mode (no exceptions) | `(EnvironmentInfo, List[str])` |
+| `detect_os()` | Detect operating system | `str` |
+| `detect_arch()` | Detect CPU architecture | `str` |
+| `detect_npu()` | Detect NPU information | `Dict` |
 
 ### CompatibilityResolver
 
-兼容性查询器，用于查询版本兼容性信息。
+Compatibility resolver for querying version compatibility information.
 
-| 方法 | 描述 |
-|------|------|
-| `from_yaml(path)` | 从 YAML 文件创建实例 |
-| `list_cann_versions()` | 列出所有 CANN 版本 |
-| `find_compatible_cann(driver_version)` | 查找兼容的 CANN 版本 |
-| `get_recommended_cann(driver_version)` | 获取推荐的 CANN 版本 |
-| `validate_environment(env)` | 验证环境兼容性 |
-| `get_framework_config(cann_version, framework)` | 获取框架配置 |
+| Method | Description |
+|--------|-------------|
+| `from_yaml(path)` | Create instance from YAML file |
+| `list_cann_versions()` | List all CANN versions |
+| `find_compatible_cann(driver_version)` | Find compatible CANN versions |
+| `get_recommended_cann(driver_version)` | Get recommended CANN version |
+| `validate_environment(env)` | Validate environment compatibility |
+| `get_framework_config(cann_version, framework)` | Get framework configuration |
 
-### 数据模型
+### Data Models
 
 ```python
 class EnvironmentInfo:
-    driver_version: str   # NPU 驱动版本
-    os_name: str          # 操作系统（如 ubuntu22.04）
-    npu_type: str         # NPU 型号（如 910B）
-    arch: str             # CPU 架构（x86_64/aarch64）
-    npu_count: int        # NPU 数量
-    firmware_version: Optional[str]  # 固件版本
+    driver_version: str   # NPU driver version
+    os_name: str          # Operating system (e.g., ubuntu22.04)
+    npu_type: str         # NPU model (e.g., 910B)
+    arch: str             # CPU architecture (x86_64/aarch64)
+    npu_count: int        # Number of NPUs
+    firmware_version: Optional[str]  # Firmware version
 
 class ValidationResult:
-    valid: bool                        # 是否有效
-    compatible_cann_versions: List[str]  # 兼容的 CANN 版本列表
-    errors: List[str]                  # 错误信息
-    warnings: List[str]                # 警告信息
+    valid: bool                        # Whether valid
+    compatible_cann_versions: List[str]  # List of compatible CANN versions
+    errors: List[str]                  # Error messages
+    warnings: List[str]                # Warning messages
 ```
 
-### 异常类
+### Exception Classes
 
-| 异常 | 描述 |
-|------|------|
-| `EnvironmentDetectionError` | 环境探测失败 |
-| `DriverNotInstalledError` | NPU 驱动未安装 |
-| `NPUNotDetectedError` | 未检测到 NPU 设备 |
-| `VersionNotFoundError` | 版本不存在 |
-| `DriverIncompatibleError` | 驱动版本不兼容 |
-| `OSNotSupportedError` | 操作系统不支持 |
-| `NPUNotSupportedError` | NPU 型号不支持 |
+| Exception | Description |
+|-----------|-------------|
+| `EnvironmentDetectionError` | Environment detection failed |
+| `DriverNotInstalledError` | NPU driver not installed |
+| `NPUNotDetectedError` | No NPU device detected |
+| `VersionNotFoundError` | Version not found |
+| `DriverIncompatibleError` | Driver version incompatible |
+| `OSNotSupportedError` | Operating system not supported |
+| `NPUNotSupportedError` | NPU model not supported |
 
-## 项目结构
+## Project Structure
 
 ```
 ascend-docker-kit/
-├── adk_core/                    # 核心库
-│   ├── __init__.py              # 模块导出
-│   ├── analyzer.py              # 环境诊断器
-│   ├── matrix.py                # 兼容性查询
-│   ├── models.py                # 数据模型
-│   ├── exceptions.py            # 异常定义
-│   └── version.py               # 版本工具
+├── adk_core/                    # Core library
+│   ├── __init__.py              # Module exports
+│   ├── analyzer.py              # Environment analyzer
+│   ├── matrix.py                # Compatibility resolver
+│   ├── models.py                # Data models
+│   ├── exceptions.py            # Exception definitions
+│   └── version.py               # Version utilities
 ├── data/
-│   └── compatibility.yaml       # 兼容性矩阵数据
+│   └── compatibility.yaml       # Compatibility matrix data
 ├── scripts/
-│   └── check_npu.sh             # NPU 检测脚本
-├── tests/                       # 单元测试
+│   └── check_npu.sh             # NPU detection script
+├── tests/                       # Unit tests
 │   ├── test_analyzer.py
 │   └── test_matrix.py
-├── docs/                        # 文档
-├── requirements.txt             # 依赖
+├── docs/                        # Documentation
+├── requirements.txt             # Dependencies
 └── README.md
 ```
 
-## 兼容性矩阵
+## Compatibility Matrix
 
-兼容性数据存储在 `data/compatibility.yaml`，包含以下 CANN 版本：
+Compatibility data is stored in `data/compatibility.yaml`, containing the following CANN versions:
 
-| CANN 版本 | 最低驱动版本 | PyTorch | MindSpore | 状态 |
-|----------|-------------|---------|-----------|------|
-| 8.0.0 | 24.1.rc1 | 2.4.0 | 2.3.0 | 稳定版 |
-| 8.0.0rc3 | 24.1.rc1 | 2.3.1 | 2.2.14 | RC 版 |
-| 7.0.0 | 23.0.3 | 2.1.0 | 2.2.0 | 稳定版 |
-| 6.3.0 | 22.0.4 | 1.11.0 | 1.10.1 | 已废弃 |
+| CANN Version | Min Driver Version | PyTorch | MindSpore | Status |
+|--------------|-------------------|---------|-----------|--------|
+| 8.0.0 | 24.1.rc1 | 2.4.0 | 2.3.0 | Stable |
+| 8.0.0rc3 | 24.1.rc1 | 2.3.1 | 2.2.14 | RC |
+| 7.0.0 | 23.0.3 | 2.1.0 | 2.2.0 | Stable |
+| 6.3.0 | 22.0.4 | 1.11.0 | 1.10.1 | Deprecated |
 
-## 开发指南
+## Development Guide
 
-### 运行测试
+### Running Tests
 
 ```bash
-# 创建虚拟环境
+# Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 
-# 运行测试
+# Run tests
 pytest tests/ -v
 ```
 
-### 添加新的 CANN 版本
+### Adding New CANN Versions
 
-编辑 `data/compatibility.yaml`，添加新版本配置：
+Edit `data/compatibility.yaml` to add new version configuration:
 
 ```yaml
 cann_versions:
@@ -274,34 +276,34 @@ cann_versions:
     deprecated: false
 ```
 
-## 路线图
+## Roadmap
 
-- [x] 兼容性矩阵库
-- [x] 环境诊断器
-- [ ] 镜像构建生成器（Dockerfile 模板）
-- [ ] 运行参数生成器（docker run 命令）
-- [ ] CLI 命令行工具
+- [x] Compatibility Matrix Library
+- [x] Environment Analyzer
+- [ ] Image Build Generator (Dockerfile templates)
+- [ ] Run Parameter Generator (docker run commands)
+- [ ] CLI Tool
 
-## 贡献指南
+## Contributing
 
-欢迎提交 Issue 和 Pull Request。
+Issues and Pull Requests are welcome.
 
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Create a Pull Request
 
-## 许可证
+## License
 
-本项目采用 Apache 2.0 许可证。详见 [LICENSE](LICENSE) 文件。
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
 
-## 相关资源
+## Resources
 
-- [华为昇腾官网](https://www.hiascend.com/)
-- [CANN 文档](https://www.hiascend.com/document)
+- [Huawei Ascend Official Website](https://www.hiascend.com/)
+- [CANN Documentation](https://www.hiascend.com/document)
 - [Ascend PyTorch](https://gitee.com/ascend/pytorch)
 
-## 致谢
+## Acknowledgments
 
-感谢华为昇腾团队提供的官方文档和技术支持。
+Thanks to the Huawei Ascend team for providing official documentation and technical support.
