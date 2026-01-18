@@ -1,0 +1,138 @@
+# Ascend Docker Kit - Compatibility Matrix
+# This file defines version compatibility between CANN, drivers, OS, and frameworks.
+# Data sourced from Huawei official documentation.
+
+version: "1.0.0"
+last_updated: "2026-01-18"
+
+cann_versions:
+  # CANN 8.0.0 - Latest stable release
+  "8.0.0":
+    min_driver_version: "24.1.rc1"
+    supported_os:
+      - ubuntu20.04
+      - ubuntu22.04
+      - openEuler22.03
+      - kylinV10
+    supported_npu:
+      - 910B
+      - 910B2
+      - 910B3
+      - 310P
+    supported_arch:
+      - x86_64
+      - aarch64
+    frameworks:
+      pytorch:
+        version: "2.4.0"
+        torch_npu_version: "2.4.0.post2"
+        python_versions:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+        whl_url: "https://gitee.com/ascend/pytorch/releases/download/v6.0.0/torch_npu-2.4.0.post2-cp{py_version}-linux_{arch}.whl"
+      mindspore:
+        version: "2.3.0"
+        python_versions:
+          - "3.9"
+          - "3.10"
+        install_command: "pip install mindspore==2.3.0"
+    release_notes: "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/800/overview/index.html"
+    deprecated: false
+
+  # CANN 8.0.RC3 - Release candidate
+  "8.0.0rc3":
+    min_driver_version: "24.1.rc1"
+    supported_os:
+      - ubuntu20.04
+      - ubuntu22.04
+      - openEuler22.03
+    supported_npu:
+      - 910B
+      - 910B2
+      - 310P
+    supported_arch:
+      - x86_64
+      - aarch64
+    frameworks:
+      pytorch:
+        version: "2.3.1"
+        torch_npu_version: "2.3.1.post1"
+        python_versions:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+        whl_url: "https://gitee.com/ascend/pytorch/releases/download/v5.0.0/torch_npu-2.3.1.post1-cp{py_version}-linux_{arch}.whl"
+      mindspore:
+        version: "2.2.14"
+        python_versions:
+          - "3.9"
+          - "3.10"
+        install_command: "pip install mindspore==2.2.14"
+    deprecated: false
+
+  # CANN 7.0.0 - Widely used stable version
+  "7.0.0":
+    min_driver_version: "23.0.3"
+    supported_os:
+      - ubuntu20.04
+      - ubuntu22.04
+      - openEuler22.03
+    supported_npu:
+      - "910A"
+      - "910B"
+      - "310P"
+      - "310"
+    supported_arch:
+      - x86_64
+      - aarch64
+    frameworks:
+      pytorch:
+        version: "2.1.0"
+        torch_npu_version: "2.1.0.post3"
+        python_versions:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+        whl_url: "https://gitee.com/ascend/pytorch/releases/download/v5.0.0/torch_npu-2.1.0.post3-cp{py_version}-linux_{arch}.whl"
+      mindspore:
+        version: "2.2.0"
+        python_versions:
+          - "3.8"
+          - "3.9"
+        install_command: "pip install mindspore==2.2.0"
+    release_notes: "https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700/overview/index.html"
+    deprecated: false
+
+  # CANN 6.3.0 - Legacy version
+  "6.3.0":
+    min_driver_version: "22.0.4"
+    max_driver_version: "23.0.0"
+    supported_os:
+      - ubuntu20.04
+      - ubuntu22.04
+    supported_npu:
+      - "910A"
+      - "310P"
+      - "310"
+    supported_arch:
+      - x86_64
+      - aarch64
+    frameworks:
+      pytorch:
+        version: "1.11.0"
+        torch_npu_version: "1.11.0.post4"
+        python_versions:
+          - "3.7"
+          - "3.8"
+          - "3.9"
+        whl_url: "https://gitee.com/ascend/pytorch/releases/download/v5.0.0/torch_npu-1.11.0.post4-cp{py_version}-linux_{arch}.whl"
+      mindspore:
+        version: "1.10.1"
+        python_versions:
+          - "3.7"
+          - "3.8"
+          - "3.9"
+        install_command: "pip install mindspore==1.10.1"
+    deprecated: true
