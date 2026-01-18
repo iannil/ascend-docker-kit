@@ -18,7 +18,7 @@
 ## 功能特性
 
 | 功能 | 描述 |
-|------|------|
+| ------ | ------ |
 | 环境探测 | 自动检测 NPU 型号（910A/910B/310P）、驱动版本、OS 发行版 |
 | 兼容性验证 | 校验当前环境是否支持目标 CANN 版本 |
 | 版本推荐 | 根据驱动版本推荐最佳 CANN 和框架组合 |
@@ -27,9 +27,7 @@
 ### 支持的环境
 
 **NPU 型号**：Atlas 910A / 910B / 910B2 / 910B3 / 310P / 310
-
 **操作系统**：Ubuntu 20.04/22.04/24.04、openEuler 22.03/24.03、Kylin V10
-
 **CPU 架构**：x86_64、aarch64
 
 ## 快速开始
@@ -38,7 +36,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourorg/ascend-docker-kit.git
+git clone https://github.com/iannil/ascend-docker-kit.git
 cd ascend-docker-kit
 
 # 安装依赖
@@ -63,6 +61,7 @@ print(f"驱动版本: {env.driver_version}")
 ```
 
 输出示例：
+
 ```
 操作系统: ubuntu22.04
 CPU 架构: x86_64
@@ -133,6 +132,7 @@ bash scripts/check_npu.sh
 ```
 
 输出 JSON 格式：
+
 ```json
 {
   "status": "ok",
@@ -149,7 +149,7 @@ bash scripts/check_npu.sh
 环境探测器，用于检测宿主机环境信息。
 
 | 方法 | 描述 | 返回值 |
-|------|------|--------|
+| ------ | ------ | -------- |
 | `analyze()` | 完整环境探测 | `EnvironmentInfo` |
 | `analyze_safe()` | 安全模式（不抛异常） | `(EnvironmentInfo, List[str])` |
 | `detect_os()` | 检测操作系统 | `str` |
@@ -161,7 +161,7 @@ bash scripts/check_npu.sh
 兼容性查询器，用于查询版本兼容性信息。
 
 | 方法 | 描述 |
-|------|------|
+| ------ | ------ |
 | `from_yaml(path)` | 从 YAML 文件创建实例 |
 | `list_cann_versions()` | 列出所有 CANN 版本 |
 | `find_compatible_cann(driver_version)` | 查找兼容的 CANN 版本 |
@@ -190,7 +190,7 @@ class ValidationResult:
 ### 异常类
 
 | 异常 | 描述 |
-|------|------|
+| ------ | ------ |
 | `EnvironmentDetectionError` | 环境探测失败 |
 | `DriverNotInstalledError` | NPU 驱动未安装 |
 | `NPUNotDetectedError` | 未检测到 NPU 设备 |
@@ -227,7 +227,7 @@ ascend-docker-kit/
 兼容性数据存储在 `data/compatibility.yaml`，包含以下 CANN 版本：
 
 | CANN 版本 | 最低驱动版本 | PyTorch | MindSpore | 状态 |
-|----------|-------------|---------|-----------|------|
+| ---------- | ------------- | --------- | ----------- | ------ |
 | 8.0.0 | 24.1.rc1 | 2.4.0 | 2.3.0 | 稳定版 |
 | 8.0.0rc3 | 24.1.rc1 | 2.3.1 | 2.2.14 | RC 版 |
 | 7.0.0 | 23.0.3 | 2.1.0 | 2.2.0 | 稳定版 |

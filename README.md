@@ -20,7 +20,7 @@ In Ascend NPU environments, complex dependencies exist between CANN versions, dr
 ## Features
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | Environment Detection | Auto-detect NPU model (910A/910B/310P), driver version, OS distribution |
 | Compatibility Validation | Verify if current environment supports target CANN version |
 | Version Recommendation | Recommend optimal CANN and framework combinations based on driver version |
@@ -29,9 +29,7 @@ In Ascend NPU environments, complex dependencies exist between CANN versions, dr
 ### Supported Environments
 
 **NPU Models**: Atlas 910A / 910B / 910B2 / 910B3 / 310P / 310
-
 **Operating Systems**: Ubuntu 20.04/22.04/24.04, openEuler 22.03/24.03, Kylin V10
-
 **CPU Architectures**: x86_64, aarch64
 
 ## Quick Start
@@ -40,7 +38,7 @@ In Ascend NPU environments, complex dependencies exist between CANN versions, dr
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourorg/ascend-docker-kit.git
+git clone https://github.com/iannil/ascend-docker-kit.git
 cd ascend-docker-kit
 
 # Install dependencies
@@ -65,6 +63,7 @@ print(f"Driver Version: {env.driver_version}")
 ```
 
 Example output:
+
 ```
 OS: ubuntu22.04
 CPU Architecture: x86_64
@@ -135,6 +134,7 @@ bash scripts/check_npu.sh
 ```
 
 JSON output:
+
 ```json
 {
   "status": "ok",
@@ -151,7 +151,7 @@ JSON output:
 Environment detector for detecting host environment information.
 
 | Method | Description | Return Value |
-|--------|-------------|--------------|
+| -------- | ------------- | -------------- |
 | `analyze()` | Full environment detection | `EnvironmentInfo` |
 | `analyze_safe()` | Safe mode (no exceptions) | `(EnvironmentInfo, List[str])` |
 | `detect_os()` | Detect operating system | `str` |
@@ -163,7 +163,7 @@ Environment detector for detecting host environment information.
 Compatibility resolver for querying version compatibility information.
 
 | Method | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `from_yaml(path)` | Create instance from YAML file |
 | `list_cann_versions()` | List all CANN versions |
 | `find_compatible_cann(driver_version)` | Find compatible CANN versions |
@@ -192,7 +192,7 @@ class ValidationResult:
 ### Exception Classes
 
 | Exception | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `EnvironmentDetectionError` | Environment detection failed |
 | `DriverNotInstalledError` | NPU driver not installed |
 | `NPUNotDetectedError` | No NPU device detected |
@@ -229,7 +229,7 @@ ascend-docker-kit/
 Compatibility data is stored in `data/compatibility.yaml`, containing the following CANN versions:
 
 | CANN Version | Min Driver Version | PyTorch | MindSpore | Status |
-|--------------|-------------------|---------|-----------|--------|
+| -------------- | ------------------- | --------- | ----------- | -------- |
 | 8.0.0 | 24.1.rc1 | 2.4.0 | 2.3.0 | Stable |
 | 8.0.0rc3 | 24.1.rc1 | 2.3.1 | 2.2.14 | RC |
 | 7.0.0 | 23.0.3 | 2.1.0 | 2.2.0 | Stable |
