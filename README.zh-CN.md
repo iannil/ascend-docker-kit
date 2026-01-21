@@ -276,11 +276,25 @@ cann_versions:
 
 ## 路线图
 
-- [x] 兼容性矩阵库
-- [x] 环境诊断器
-- [ ] 镜像构建生成器（Dockerfile 模板）
-- [ ] 运行参数生成器（docker run 命令）
-- [ ] CLI 命令行工具
+**整体进度：约 50%**
+
+### 第一阶段：核心层 ✅ 已完成
+- [x] **兼容性矩阵库** - `matrix.py`（428 行，23 个测试通过）
+- [x] **环境诊断器** - `analyzer.py`（408 行，36 个测试通过）
+- [x] **数据模型** - Pydantic v2 类型定义
+- [x] **异常处理** - 11 个自定义异常类
+- [x] **版本工具** - PEP 440 版本比较
+- [x] **NPU 检测脚本** - `scripts/check_npu.sh`（JSON 输出）
+
+### 第二阶段：构建层 🚧 进行中
+- [ ] **镜像构建生成器** - Jinja2 模板渲染 Dockerfile
+- [ ] **Dockerfile 模板** - base、CANN、PyTorch/MindSpore 多阶段构建
+- [ ] **CANN 安装脚本** - 静默安装自动化
+- [ ] **运行参数生成器** - docker run 命令生成（设备映射）
+
+### 第三阶段：用户界面 📋 计划中
+- [ ] **CLI 工具** - Click 命令行接口
+- [ ] **示例代码** - 开箱即用的 PyTorch/MindSpore 配置
 
 ## 贡献指南
 

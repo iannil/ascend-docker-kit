@@ -278,11 +278,25 @@ cann_versions:
 
 ## Roadmap
 
-- [x] Compatibility Matrix Library
-- [x] Environment Analyzer
-- [ ] Image Build Generator (Dockerfile templates)
-- [ ] Run Parameter Generator (docker run commands)
-- [ ] CLI Tool
+**Overall Progress: ~50%**
+
+### Phase 1: Core Layer ✅ Completed
+- [x] **Compatibility Matrix Library** - `matrix.py` (428 lines, 23 tests passed)
+- [x] **Environment Analyzer** - `analyzer.py` (408 lines, 36 tests passed)
+- [x] **Data Models** - Pydantic v2 type definitions
+- [x] **Exception Handling** - 11 custom exception classes
+- [x] **Version Utilities** - PEP 440 compliant version comparison
+- [x] **NPU Detection Script** - `scripts/check_npu.sh` (JSON output)
+
+### Phase 2: Build Layer 🚧 In Progress
+- [ ] **Image Build Generator** - Dockerfile rendering with Jinja2 templates
+- [ ] **Dockerfile Templates** - base, CANN, PyTorch/MindSpore multi-stage builds
+- [ ] **CANN Installation Script** - Silent installation automation
+- [ ] **Run Parameter Generator** - Docker run command generation with device mapping
+
+### Phase 3: User Interface 📋 Planned
+- [ ] **CLI Tool** - Command-line interface with Click
+- [ ] **Examples** - Ready-to-use PyTorch/MindSpore configurations
 
 ## Contributing
 
