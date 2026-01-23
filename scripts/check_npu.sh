@@ -15,6 +15,39 @@ output_error() {
     echo "}"
 }
 
+# Parse NPU entries from npu-smi output
+# Args: $1 - npu-smi output, $2 - firmware version (optional)
+# Output: JSON array of NPU objects, and sets NPU_COUNT
+parse_npu_entries() {
+    local npu_info="$1"
+    local firmware_version="$2"
+    local npu_list=""
+    NPU_COUNT=0
+
+    while IFS= read -r line; do
+        # Match lines with NPU info pattern: | <id> <type> <health> <power> |
+        if echo "$line" | grep -qP '^\|\s+\d+\s+\d{3}[A-Z0-9]{0,10}\s+'; then
+            local npu_id=$(echo "$line" | grep -oP '^\|\s+\K\d+')
+            local npu_type=$(echo "$line" | grep -oP '^\|\s+\d+\s+\K\d{3}[A-Z0-9]{0,10}')
+
+            if [ -n "$npu_id" ] && [ -n "$npu_type" ]; then
+                if [ $NPU_COUNT -gt 0 ]; then
+                    npu_list="$npu_list,"
+                fi
+
+                if [ -n "$firmware_version" ]; then
+                    npu_list="$npu_list{\"id\": $npu_id, \"type\": \"$npu_type\", \"firmware\": \"$firmware_version\"}"
+                else
+                    npu_list="$npu_list{\"id\": $npu_id, \"type\": \"$npu_type\"}"
+                fi
+                NPU_COUNT=$((NPU_COUNT + 1))
+            fi
+        fi
+    done <<< "$npu_info"
+
+    echo "$npu_list"
+}
+
 # Check if npu-smi exists
 if ! command -v npu-smi &> /dev/null; then
     output_error "npu-smi not found" "Please install Ascend NPU driver"
@@ -36,33 +69,6 @@ if [ -z "$DRIVER_VERSION" ]; then
     exit 1
 fi
 
-# Parse NPU information
-# Format: "| 0    910B   OK      75W   |"
-NPU_LIST=""
-NPU_COUNT=0
-
-while IFS= read -r line; do
-    # Match lines with NPU info pattern: | <id> <type> <health> <power> |
-    if echo "$line" | grep -qP '^\|\s+\d+\s+\d{3}[A-Z0-9]*\s+'; then
-        NPU_ID=$(echo "$line" | grep -oP '^\|\s+\K\d+')
-        NPU_TYPE=$(echo "$line" | grep -oP '^\|\s+\d+\s+\K\d{3}[A-Z0-9]*')
-
-        if [ -n "$NPU_ID" ] && [ -n "$NPU_TYPE" ]; then
-            if [ $NPU_COUNT -gt 0 ]; then
-                NPU_LIST="$NPU_LIST,"
-            fi
-            NPU_LIST="$NPU_LIST{\"id\": $NPU_ID, \"type\": \"$NPU_TYPE\"}"
-            NPU_COUNT=$((NPU_COUNT + 1))
-        fi
-    fi
-done <<< "$NPU_INFO"
-
-# Check if any NPUs were found
-if [ $NPU_COUNT -eq 0 ]; then
-    output_error "No NPU devices detected" "Check if NPU hardware is properly installed"
-    exit 1
-fi
-
 # Try to get firmware version from npu-smi info -t board
 FIRMWARE_VERSION=""
 BOARD_INFO=$(npu-smi info -t board 2>/dev/null)
@@ -71,34 +77,19 @@ if [ $? -eq 0 ]; then
     FIRMWARE_VERSION=$(echo "$BOARD_INFO" | grep -iP 'firmware|version' | grep -oP '[\d.]+' | head -1)
 fi
 
-# Build the NPU list with firmware if available
-NPU_DETAILED_LIST=""
-NPU_COUNT=0
+# Parse NPU entries (single call, no duplication)
+NPU_LIST=$(parse_npu_entries "$NPU_INFO" "$FIRMWARE_VERSION")
 
-while IFS= read -r line; do
-    if echo "$line" | grep -qP '^\|\s+\d+\s+\d{3}[A-Z0-9]*\s+'; then
-        NPU_ID=$(echo "$line" | grep -oP '^\|\s+\K\d+')
-        NPU_TYPE=$(echo "$line" | grep -oP '^\|\s+\d+\s+\K\d{3}[A-Z0-9]*')
-
-        if [ -n "$NPU_ID" ] && [ -n "$NPU_TYPE" ]; then
-            if [ $NPU_COUNT -gt 0 ]; then
-                NPU_DETAILED_LIST="$NPU_DETAILED_LIST,"
-            fi
-
-            if [ -n "$FIRMWARE_VERSION" ]; then
-                NPU_DETAILED_LIST="$NPU_DETAILED_LIST{\"id\": $NPU_ID, \"type\": \"$NPU_TYPE\", \"firmware\": \"$FIRMWARE_VERSION\"}"
-            else
-                NPU_DETAILED_LIST="$NPU_DETAILED_LIST{\"id\": $NPU_ID, \"type\": \"$NPU_TYPE\"}"
-            fi
-            NPU_COUNT=$((NPU_COUNT + 1))
-        fi
-    fi
-done <<< "$NPU_INFO"
+# Check if any NPUs were found
+if [ $NPU_COUNT -eq 0 ]; then
+    output_error "No NPU devices detected" "Check if NPU hardware is properly installed"
+    exit 1
+fi
 
 # Output success result
 echo "{"
 echo "  \"status\": \"ok\","
 echo "  \"driver_version\": \"$DRIVER_VERSION\","
 echo "  \"npu_count\": $NPU_COUNT,"
-echo "  \"npus\": [$NPU_DETAILED_LIST]"
+echo "  \"npus\": [$NPU_LIST]"
 echo "}"

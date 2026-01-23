@@ -1,10 +1,12 @@
 """
 ADK Core - Ascend Docker Kit Core Library
 
-This module provides compatibility matrix resolution for Huawei Ascend NPU environments.
+This module provides compatibility matrix resolution and Dockerfile generation
+for Huawei Ascend NPU environments.
 """
 
 from .analyzer import EnvironmentAnalyzer
+from .checksum import ChecksumError, ChecksumVerifier, PackageVerifier
 from .exceptions import (
     ADKError,
     CompatibilityError,
@@ -17,6 +19,13 @@ from .exceptions import (
     NPUNotSupportedError,
     OSNotSupportedError,
     VersionNotFoundError,
+)
+from .generator import (
+    BuildContext,
+    BuildTarget,
+    DockerfileGenerator,
+    DockerfileGeneratorError,
+    GeneratorOutput,
 )
 from .matrix import CompatibilityResolver
 from .models import (
@@ -41,12 +50,20 @@ from .version import (
     sort_versions,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # Main classes
     "CompatibilityResolver",
     "EnvironmentAnalyzer",
+    "DockerfileGenerator",
+    # Generator types
+    "BuildContext",
+    "BuildTarget",
+    "GeneratorOutput",
+    # Checksum verification
+    "ChecksumVerifier",
+    "PackageVerifier",
     # Models
     "CANNVersionEntry",
     "CompatibilityMatrix",
@@ -60,8 +77,10 @@ __all__ = [
     "ValidationResult",
     # Exceptions
     "ADKError",
+    "ChecksumError",
     "CompatibilityError",
     "ConfigurationError",
+    "DockerfileGeneratorError",
     "DriverIncompatibleError",
     "DriverNotInstalledError",
     "EnvironmentDetectionError",

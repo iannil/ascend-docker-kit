@@ -3,7 +3,7 @@
 # Data sourced from Huawei official documentation.
 
 version: "1.0.0"
-last_updated: "2026-01-18"
+last_updated: "2026-01-23"
 
 cann_versions:
   # CANN 8.0.0 - Latest stable release
@@ -47,6 +47,7 @@ cann_versions:
     supported_os:
       - ubuntu20.04
       - ubuntu22.04
+      - ubuntu24.04
       - openEuler22.03
     supported_npu:
       - 910B
@@ -80,9 +81,9 @@ cann_versions:
       - ubuntu22.04
       - openEuler22.03
     supported_npu:
-      - "910A"
-      - "910B"
-      - "310P"
+      - 910A
+      - 910B
+      - 310P
       - "310"
     supported_arch:
       - x86_64
@@ -113,8 +114,8 @@ cann_versions:
       - ubuntu20.04
       - ubuntu22.04
     supported_npu:
-      - "910A"
-      - "310P"
+      - 910A
+      - 310P
       - "310"
     supported_arch:
       - x86_64

@@ -5,10 +5,19 @@ Core logic for querying CANN/driver/framework compatibility information.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import yaml
 from pydantic import ValidationError
+
+# Module-level cache for parsed YAML files: {(path, mtime): CompatibilityMatrix}
+# Note: Cache is not thread-safe. For multi-threaded use, add locking.
+_yaml_cache: Dict[Tuple[str, float], "CompatibilityMatrix"] = {}
+
+
+def clear_yaml_cache() -> None:
+    """Clear the YAML file cache. Useful for testing or after file updates."""
+    _yaml_cache.clear()
 
 from .exceptions import (
     ConfigurationError,
@@ -26,7 +35,7 @@ from .models import (
     QueryResult,
     ValidationResult,
 )
-from .version import is_compatible, sort_versions
+from .version import compare_versions, is_compatible, sort_versions
 
 
 class CompatibilityResolver:
@@ -50,6 +59,9 @@ class CompatibilityResolver:
         """
         Create resolver from YAML file.
 
+        Uses module-level cache keyed by file path and modification time
+        to avoid re-parsing unchanged files.
+
         Args:
             path: Path to compatibility.yaml
 
@@ -59,13 +71,20 @@ class CompatibilityResolver:
         Raises:
             ConfigurationError: If file is invalid or cannot be parsed
         """
-        path = Path(path)
+        path = Path(path).resolve()
 
         if not path.exists():
             raise ConfigurationError(
                 f"Configuration file not found: {path}",
                 suggestions=[f"Ensure {path} exists in the project root"],
             )
+
+        # Check cache using file path and modification time
+        mtime = path.stat().st_mtime
+        cache_key = (str(path), mtime)
+
+        if cache_key in _yaml_cache:
+            return cls(_yaml_cache[cache_key])
 
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -83,6 +102,9 @@ class CompatibilityResolver:
                 f"Invalid configuration schema: {e}",
                 suggestions=["Check field types and required fields"],
             )
+
+        # Store in cache
+        _yaml_cache[cache_key] = matrix
 
         return cls(matrix)
 
@@ -115,7 +137,19 @@ class CompatibilityResolver:
             cann_version: CANN version string
 
         Returns:
-            QueryResult with driver, OS, NPU, and framework requirements
+            QueryResult with the following structure:
+            - success (bool): True if version was found
+            - data (dict): When success=True, contains:
+                - cann_version (str): The queried CANN version
+                - min_driver_version (str): Minimum required driver version
+                - max_driver_version (str|None): Maximum supported driver version
+                - supported_os (list[str]): List of supported OS names
+                - supported_npu (list[str]): List of supported NPU types
+                - supported_arch (list[str]): List of supported architectures
+                - frameworks (list[str]): Available framework names
+                - deprecated (bool): Whether this version is deprecated
+            - error (str): When success=False, error message
+            - suggestions (list[str]): Helpful suggestions
         """
         entry = self._matrix.get_cann_version(cann_version)
         if entry is None:
@@ -156,7 +190,9 @@ class CompatibilityResolver:
             npu_type: NPU type (optional filter)
 
         Returns:
-            List of compatible CANN versions, sorted descending
+            List of compatible CANN version strings, sorted in descending order
+            (newest first). Returns empty list if no compatible versions found.
+            Only non-deprecated versions are included.
         """
         compatible = []
 
@@ -168,9 +204,9 @@ class CompatibilityResolver:
                 continue
 
             if entry.max_driver_version:
-                if is_compatible(driver_version, entry.max_driver_version):
-                    if driver_version > entry.max_driver_version:
-                        continue
+                # Skip if driver version exceeds maximum supported
+                if compare_versions(driver_version, entry.max_driver_version) > 0:
+                    continue
 
             if os_name and os_name not in entry.supported_os:
                 continue
@@ -208,10 +244,20 @@ class CompatibilityResolver:
 
         Args:
             cann_version: CANN version string
-            framework: Framework name
+            framework: Framework name (e.g., "pytorch", "mindspore")
 
         Returns:
-            QueryResult with framework configuration
+            QueryResult with the following structure:
+            - success (bool): True if framework config was found
+            - data (dict): When success=True, contains:
+                - framework (str): Framework name
+                - version (str): Framework version (e.g., "2.4.0")
+                - torch_npu_version (str|None): torch_npu version for PyTorch
+                - python_versions (list[str]): Supported Python versions
+                - whl_url (str|None): Download URL for pre-built wheel
+                - install_command (str|None): Alternative installation command
+            - error (str): When success=False, error message
+            - suggestions (list[str]): Available frameworks or versions
         """
         entry = self._matrix.get_cann_version(cann_version)
         if entry is None:
@@ -249,10 +295,17 @@ class CompatibilityResolver:
         Validate environment against compatibility matrix.
 
         Args:
-            env: Environment information
+            env: Environment information containing driver_version, os_name,
+                 npu_type, arch, and optional firmware_version/npu_count
 
         Returns:
-            ValidationResult with compatibility status
+            ValidationResult with the following structure:
+            - valid (bool): True if at least one compatible CANN version exists
+            - compatible_cann_versions (list[str]): Compatible versions sorted
+              descending (newest first). Empty if validation fails.
+            - errors (list[str]): List of error messages. Non-empty when valid=False.
+              Contains details about why no compatible version was found.
+            - warnings (list[str]): Non-fatal warnings (e.g., deprecated versions)
         """
         errors: List[str] = []
         warnings: List[str] = []
@@ -265,6 +318,12 @@ class CompatibilityResolver:
                 version_errors.append(
                     f"Driver {env.driver_version} < required {entry.min_driver_version}"
                 )
+
+            if entry.max_driver_version:
+                if compare_versions(env.driver_version, entry.max_driver_version) > 0:
+                    version_errors.append(
+                        f"Driver {env.driver_version} > max supported {entry.max_driver_version}"
+                    )
 
             if env.os_name not in entry.supported_os:
                 version_errors.append(f"OS {env.os_name} not supported")
@@ -333,8 +392,16 @@ class CompatibilityResolver:
             raise DriverIncompatibleError(
                 driver_version,
                 cann_version,
-                entry.min_driver_version,
+                min_required=entry.min_driver_version,
             )
+
+        if entry.max_driver_version:
+            if compare_versions(driver_version, entry.max_driver_version) > 0:
+                raise DriverIncompatibleError(
+                    driver_version,
+                    cann_version,
+                    max_allowed=entry.max_driver_version,
+                )
 
     def check_os_compatibility(self, os_name: str, cann_version: str) -> None:
         """
@@ -417,11 +484,12 @@ class CompatibilityResolver:
 
         Args:
             driver_version: Current driver version
-            os_name: Operating system name (optional)
-            npu_type: NPU type (optional)
+            os_name: Operating system name (optional filter)
+            npu_type: NPU type (optional filter)
 
         Returns:
-            Recommended CANN version or None
+            The latest compatible CANN version string (e.g., "8.0.0"),
+            or None if no compatible version exists for the given environment.
         """
         compatible = self.find_compatible_cann(driver_version, os_name, npu_type)
         return compatible[0] if compatible else None

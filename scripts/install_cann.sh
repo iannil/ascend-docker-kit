@@ -1,0 +1,365 @@
+#!/bin/bash
+# install_cann.sh - CANN silent installation script for Docker builds
+#
+# Usage: install_cann.sh <toolkit.run> [kernels.run] [--cleanup]
+#
+# This script installs CANN Toolkit and optionally CANN Kernels in Docker containers.
+# It handles silent installation, environment configuration, and cleanup.
+#
+# Examples:
+#   install_cann.sh Ascend-cann-toolkit_8.0.0_linux-x86_64.run --cleanup
+#   install_cann.sh toolkit.run kernels.run --cleanup
+
+set -eo pipefail
+
+#=============================================================================
+# Constants
+#=============================================================================
+readonly INSTALL_PREFIX="/usr/local/Ascend"
+readonly LOG_FILE="/tmp/cann_install.log"
+readonly ENV_SCRIPT="/etc/profile.d/ascend.sh"
+
+#=============================================================================
+# Logging Functions
+#=============================================================================
+
+# Output JSON formatted log message
+log_json() {
+    local level="$1"
+    local message="$2"
+    local timestamp
+    timestamp=$(date -Iseconds 2>/dev/null || date +"%Y-%m-%dT%H:%M:%S")
+    echo "{\"level\": \"$level\", \"message\": \"$message\", \"timestamp\": \"$timestamp\"}"
+}
+
+log_info() {
+    log_json "info" "$1"
+}
+
+log_warn() {
+    log_json "warning" "$1"
+}
+
+log_error() {
+    log_json "error" "$1"
+}
+
+# Output error and exit
+die() {
+    log_error "$1"
+    exit 1
+}
+
+#=============================================================================
+# Validation Functions
+#=============================================================================
+
+# Validate .run file exists and is readable
+validate_run_file() {
+    local run_file="$1"
+    local file_type="$2"
+
+    if [ ! -f "$run_file" ]; then
+        die "File not found: $run_file"
+    fi
+
+    if [ ! -r "$run_file" ]; then
+        die "Cannot read file: $run_file"
+    fi
+
+    # Check if file is a valid shell script (starts with #!)
+    if ! head -c 2 "$run_file" | grep -q '#!'; then
+        die "Invalid .run file format: $run_file (expected shell script header)"
+    fi
+
+    log_info "Validated $file_type: $run_file"
+}
+
+# Check system dependencies
+check_dependencies() {
+    log_info "Checking system dependencies..."
+
+    local missing_deps=()
+
+    # Check for required commands
+    local required_cmds=("python3" "pip3")
+    for cmd in "${required_cmds[@]}"; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_deps+=("$cmd")
+        fi
+    done
+
+    # Check for required packages (Debian/Ubuntu)
+    if command -v dpkg &>/dev/null; then
+        local required_pkgs=("libsqlite3-dev" "zlib1g-dev")
+        for pkg in "${required_pkgs[@]}"; do
+            if ! dpkg -l "$pkg" &>/dev/null 2>&1; then
+                missing_deps+=("$pkg")
+            fi
+        done
+    fi
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        log_warn "Missing dependencies: ${missing_deps[*]}. Installation may fail."
+    else
+        log_info "All dependencies satisfied"
+    fi
+}
+
+#=============================================================================
+# Installation Functions
+#=============================================================================
+
+# Install CANN Toolkit
+install_toolkit() {
+    local toolkit_file="$1"
+
+    log_info "Installing CANN Toolkit from $toolkit_file..."
+
+    chmod +x "$toolkit_file"
+
+    # Create install directory
+    mkdir -p "$INSTALL_PREFIX"
+
+    # Silent installation with predefined options
+    # --quiet: Disable interactive prompts
+    # --install: Perform installation
+    # --install-path: Specify installation directory
+    if ! "$toolkit_file" --quiet --install --install-path="$INSTALL_PREFIX" >> "$LOG_FILE" 2>&1; then
+        log_error "CANN Toolkit installation failed. Check $LOG_FILE for details."
+        if [ -f "$LOG_FILE" ]; then
+            tail -20 "$LOG_FILE" >&2
+        fi
+        exit 1
+    fi
+
+    log_info "CANN Toolkit installed successfully to $INSTALL_PREFIX"
+}
+
+# Install CANN Kernels
+install_kernels() {
+    local kernels_file="$1"
+
+    if [ -z "$kernels_file" ] || [ ! -f "$kernels_file" ]; then
+        log_info "Skipping CANN Kernels installation (no file provided)"
+        return 0
+    fi
+
+    log_info "Installing CANN Kernels from $kernels_file..."
+
+    chmod +x "$kernels_file"
+
+    if ! "$kernels_file" --quiet --install --install-path="$INSTALL_PREFIX" >> "$LOG_FILE" 2>&1; then
+        log_error "CANN Kernels installation failed. Check $LOG_FILE for details."
+        if [ -f "$LOG_FILE" ]; then
+            tail -20 "$LOG_FILE" >&2
+        fi
+        exit 1
+    fi
+
+    log_info "CANN Kernels installed successfully"
+}
+
+# Configure environment variables
+configure_environment() {
+    log_info "Configuring environment variables..."
+
+    cat > "$ENV_SCRIPT" << 'ENVEOF'
+# Ascend CANN Environment Variables
+# Generated by install_cann.sh
+
+export ASCEND_HOME=/usr/local/Ascend
+export ASCEND_TOOLKIT_HOME=${ASCEND_HOME}/ascend-toolkit/latest
+
+# Library paths
+export LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/lib64:${ASCEND_TOOLKIT_HOME}/lib64/plugin/opskernel:${ASCEND_TOOLKIT_HOME}/lib64/plugin/nnengine:${LD_LIBRARY_PATH:-}
+
+# Binary paths
+export PATH=${ASCEND_TOOLKIT_HOME}/bin:${ASCEND_TOOLKIT_HOME}/compiler/ccec_compiler/bin:${PATH:-}
+
+# Python paths
+export PYTHONPATH=${ASCEND_TOOLKIT_HOME}/python/site-packages:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe:${PYTHONPATH:-}
+
+# CANN specific paths
+export ASCEND_AICPU_PATH=${ASCEND_TOOLKIT_HOME}
+export ASCEND_OPP_PATH=${ASCEND_TOOLKIT_HOME}/opp
+export TOOLCHAIN_HOME=${ASCEND_TOOLKIT_HOME}/toolkit
+
+# HCCL configuration for distributed training
+export HCCL_CONNECT_TIMEOUT=1800
+export HCCL_EXEC_TIMEOUT=1800
+export HCCL_WHITELIST_DISABLE=1
+ENVEOF
+
+    chmod 644 "$ENV_SCRIPT"
+
+    log_info "Environment configured at $ENV_SCRIPT"
+}
+
+# Verify CANN installation
+verify_installation() {
+    log_info "Verifying CANN installation..."
+
+    local ascend_home="$INSTALL_PREFIX/ascend-toolkit/latest"
+
+    # Check installation directory exists
+    if [ ! -d "$ascend_home" ]; then
+        die "CANN installation verification failed: $ascend_home not found"
+    fi
+
+    # Check critical files
+    local required_files=(
+        "$ascend_home/bin/atc"
+    )
+
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            log_warn "Expected file not found: $file (may be normal for some configurations)"
+        fi
+    done
+
+    # Check critical directories
+    local required_dirs=(
+        "$ascend_home/lib64"
+        "$ascend_home/python"
+    )
+
+    for dir in "${required_dirs[@]}"; do
+        if [ ! -d "$dir" ]; then
+            die "CANN installation verification failed: $dir not found"
+        fi
+    done
+
+    log_info "CANN installation verified successfully"
+}
+
+#=============================================================================
+# Cleanup Function
+#=============================================================================
+
+cleanup() {
+    local cleanup_flag="$1"
+
+    if [ "$cleanup_flag" != "--cleanup" ]; then
+        log_info "Skipping cleanup (use --cleanup flag to enable)"
+        return 0
+    fi
+
+    log_info "Cleaning up installation artifacts..."
+
+    # Remove installation log
+    rm -f "$LOG_FILE"
+
+    # Remove pip cache
+    rm -rf /root/.cache/pip 2>/dev/null || true
+    rm -rf ~/.cache/pip 2>/dev/null || true
+
+    # Remove apt cache (Debian/Ubuntu)
+    if command -v apt-get &>/dev/null; then
+        apt-get clean 2>/dev/null || true
+        rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+    fi
+
+    # Remove temporary files
+    rm -rf /tmp/Ascend* 2>/dev/null || true
+    rm -rf /tmp/cann* 2>/dev/null || true
+
+    log_info "Cleanup completed"
+}
+
+#=============================================================================
+# Main
+#=============================================================================
+
+print_usage() {
+    cat << EOF
+Usage: $0 <toolkit.run> [kernels.run] [--cleanup]
+
+Install CANN Toolkit and optionally CANN Kernels for Ascend NPU.
+
+Arguments:
+    toolkit.run     Path to CANN Toolkit .run file (required)
+    kernels.run     Path to CANN Kernels .run file (optional)
+    --cleanup       Clean up temporary files after installation
+
+Examples:
+    $0 Ascend-cann-toolkit_8.0.0_linux-x86_64.run --cleanup
+    $0 toolkit.run kernels.run --cleanup
+
+Note:
+    Download CANN packages from https://www.hiascend.com/
+EOF
+}
+
+main() {
+    local toolkit_file=""
+    local kernels_file=""
+    local cleanup_flag=""
+
+    # Parse arguments
+    for arg in "$@"; do
+        case "$arg" in
+            --cleanup)
+                cleanup_flag="--cleanup"
+                ;;
+            --help|-h)
+                print_usage
+                exit 0
+                ;;
+            *)
+                if [ -z "$toolkit_file" ]; then
+                    toolkit_file="$arg"
+                elif [ -z "$kernels_file" ]; then
+                    kernels_file="$arg"
+                fi
+                ;;
+        esac
+    done
+
+    # Validate required argument
+    if [ -z "$toolkit_file" ]; then
+        print_usage
+        exit 1
+    fi
+
+    log_info "Starting CANN installation..."
+    log_info "Toolkit: $toolkit_file"
+    [ -n "$kernels_file" ] && log_info "Kernels: $kernels_file"
+    [ -n "$cleanup_flag" ] && log_info "Cleanup: enabled"
+
+    # Check dependencies
+    check_dependencies
+
+    # Validate input files
+    validate_run_file "$toolkit_file" "toolkit"
+    [ -n "$kernels_file" ] && [ -f "$kernels_file" ] && validate_run_file "$kernels_file" "kernels"
+
+    # Install CANN components
+    install_toolkit "$toolkit_file"
+    install_kernels "$kernels_file"
+
+    # Configure environment
+    configure_environment
+
+    # Verify installation
+    verify_installation
+
+    # Cleanup if requested
+    cleanup "$cleanup_flag"
+
+    log_info "CANN installation completed successfully"
+
+    # Output summary
+    echo ""
+    echo "============================================"
+    echo "CANN Installation Summary"
+    echo "============================================"
+    echo "Install Path: $INSTALL_PREFIX"
+    echo "Environment:  $ENV_SCRIPT"
+    echo ""
+    echo "To activate environment:"
+    echo "  source $ENV_SCRIPT"
+    echo "============================================"
+}
+
+main "$@"

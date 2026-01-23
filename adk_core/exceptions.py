@@ -66,20 +66,39 @@ class DriverIncompatibleError(CompatibilityError):
         self,
         driver_version: str,
         cann_version: str,
-        min_required: str,
+        min_required: Optional[str] = None,
+        max_allowed: Optional[str] = None,
     ):
         self.driver_version = driver_version
         self.cann_version = cann_version
         self.min_required = min_required
+        self.max_allowed = max_allowed
 
-        message = (
-            f"Driver version '{driver_version}' is incompatible with CANN {cann_version}. "
-            f"Minimum required driver version is '{min_required}'."
-        )
-        suggestions = [
-            f"Upgrade your driver to version {min_required} or later",
-            "Check华为官方文档获取驱动升级指南",
-        ]
+        if min_required and not max_allowed:
+            message = (
+                f"Driver version '{driver_version}' is incompatible with CANN {cann_version}. "
+                f"Minimum required driver version is '{min_required}'."
+            )
+            suggestions = [
+                f"Upgrade your driver to version {min_required} or later",
+                "Check Huawei official documentation for driver upgrade guide",
+            ]
+        elif max_allowed and not min_required:
+            message = (
+                f"Driver version '{driver_version}' is incompatible with CANN {cann_version}. "
+                f"Maximum supported driver version is '{max_allowed}'."
+            )
+            suggestions = [
+                f"Downgrade your driver to version {max_allowed} or earlier",
+                "Or upgrade to a newer CANN version that supports your driver",
+            ]
+        else:
+            message = (
+                f"Driver version '{driver_version}' is incompatible with CANN {cann_version}."
+            )
+            suggestions = [
+                "Check Huawei official documentation for compatible driver versions",
+            ]
 
         super().__init__(message, suggestions)
 

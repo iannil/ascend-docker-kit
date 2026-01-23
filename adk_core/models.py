@@ -116,6 +116,13 @@ class CANNVersionEntry(BaseModel):
             raise ValueError(f"Invalid driver version format: {v}")
         return v
 
+    @field_validator("max_driver_version")
+    @classmethod
+    def validate_max_driver_version(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not is_version_valid(v):
+            raise ValueError(f"Invalid max driver version format: {v}")
+        return v
+
 
 class CompatibilityMatrix(BaseModel):
     """Root model for the compatibility matrix."""

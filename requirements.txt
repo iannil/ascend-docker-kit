@@ -1,7 +1,9 @@
 # ADK Core Dependencies
-pydantic>=2.0
-PyYAML>=6.0
+pydantic>=2.0,<3.0
+PyYAML>=6.0,<7.0
 packaging>=23.0
+Jinja2>=3.1,<4.0
+click>=8.0,<9.0
 
-# Development Dependencies
-pytest>=7.0
+# Development Dependencies (install with: pip install -r requirements-dev.txt)
+# pytest>=7.0

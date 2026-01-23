@@ -6,11 +6,12 @@ and driver version for compatibility validation.
 """
 
 import json
+import os
 import platform
 import re
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .exceptions import (
     DriverNotInstalledError,
@@ -18,6 +19,36 @@ from .exceptions import (
     NPUNotDetectedError,
 )
 from .models import EnvironmentInfo
+
+
+def _get_safe_env() -> Dict[str, str]:
+    """
+    Create a safe subprocess environment with minimal required variables.
+
+    Returns:
+        Dict containing only safe environment variables for subprocess calls
+    """
+    safe_vars = ["PATH", "HOME", "USER", "LANG", "LC_ALL", "TERM"]
+    env = {}
+    for var in safe_vars:
+        value = os.environ.get(var)
+        if value is not None:
+            env[var] = value
+
+    # Ensure Ascend-related paths are included for npu-smi
+    ascend_paths = [
+        "/usr/local/Ascend/driver/bin",
+        "/usr/local/bin",
+        "/opt/Ascend/driver/bin",
+    ]
+
+    current_path = env.get("PATH", "/usr/bin:/bin")
+    for ascend_path in ascend_paths:
+        if ascend_path not in current_path:
+            current_path = f"{ascend_path}:{current_path}"
+
+    env["PATH"] = current_path
+    return env
 
 
 class EnvironmentAnalyzer:
@@ -77,7 +108,7 @@ class EnvironmentAnalyzer:
         errors: List[str] = []
         os_name: Optional[str] = None
         arch: Optional[str] = None
-        npu_info: Optional[Dict] = None
+        npu_info: Optional[Dict[str, Any]] = None
 
         # Detect OS
         try:
@@ -139,6 +170,11 @@ class EnvironmentAnalyzer:
             raise EnvironmentDetectionError(
                 "Cannot read /etc/os-release: permission denied",
                 suggestions=["Run with appropriate permissions"],
+            )
+        except OSError as e:
+            raise EnvironmentDetectionError(
+                f"Cannot read /etc/os-release: {e}",
+                suggestions=["Check file accessibility and permissions"],
             )
 
         return cls._parse_os_release(content)
@@ -215,7 +251,7 @@ class EnvironmentAnalyzer:
         return arch_map.get(machine, machine)
 
     @classmethod
-    def detect_npu(cls) -> Dict:
+    def detect_npu(cls) -> Dict[str, Any]:
         """
         Detect NPU information using npu-smi.
 
@@ -238,6 +274,7 @@ class EnvironmentAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=30,
+                env=_get_safe_env(),
             )
         except subprocess.TimeoutExpired:
             raise NPUNotDetectedError("npu-smi command timed out")
@@ -270,6 +307,7 @@ class EnvironmentAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=5,
+                env=_get_safe_env(),
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -290,7 +328,7 @@ class EnvironmentAnalyzer:
         return None
 
     @classmethod
-    def _parse_npu_smi_output(cls, output: str) -> Dict:
+    def _parse_npu_smi_output(cls, output: str) -> Dict[str, Any]:
         """
         Parse npu-smi info output.
 
@@ -313,7 +351,7 @@ class EnvironmentAnalyzer:
 
         # Extract NPU entries
         # Format: "| 0    910B   OK      75W   |"
-        npu_pattern = re.compile(r"^\|\s+(\d+)\s+(\d{3}[A-Z0-9]*)\s+", re.MULTILINE)
+        npu_pattern = re.compile(r"^\|\s+(\d+)\s+(\d{3}[A-Z0-9]{0,10})\s+", re.MULTILINE)
         npus = npu_pattern.findall(output)
 
         if not npus:
@@ -344,6 +382,7 @@ class EnvironmentAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                env=_get_safe_env(),
             )
             if result.returncode == 0:
                 # Try to extract firmware version from output
@@ -356,7 +395,7 @@ class EnvironmentAnalyzer:
         return None
 
     @classmethod
-    def detect_from_script(cls) -> Dict:
+    def detect_from_script(cls) -> Dict[str, Any]:
         """
         Detect NPU information using the check_npu.sh script.
 
@@ -383,18 +422,34 @@ class EnvironmentAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=60,
+                env=_get_safe_env(),
             )
         except subprocess.TimeoutExpired:
             raise NPUNotDetectedError("NPU detection script timed out")
         except subprocess.SubprocessError as e:
             raise EnvironmentDetectionError(f"Failed to run detection script: {e}")
 
+        # Check for empty output before parsing
+        if not result.stdout or not result.stdout.strip():
+            raise EnvironmentDetectionError(
+                "Detection script returned empty output",
+                suggestions=[
+                    "Check if NPU driver is properly installed",
+                    "Verify npu-smi is accessible",
+                ],
+            )
+
         try:
             data = json.loads(result.stdout)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             raise EnvironmentDetectionError(
-                "Failed to parse detection script output",
-                suggestions=["Check script output format"],
+                f"Failed to parse detection script output: {e}",
+                suggestions=[
+                    "Check script output format",
+                    f"Raw output: {result.stdout[:200]}..."
+                    if len(result.stdout) > 200
+                    else f"Raw output: {result.stdout}",
+                ],
             )
 
         if data.get("status") == "error":

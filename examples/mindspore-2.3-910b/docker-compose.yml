@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  mindspore-910b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ubuntu:22.04
+        PYTHON_VERSION: "3.10"
+    image: mindspore-910b:2.3
+    container_name: mindspore-910b
+
+    # NPU device access
+    devices:
+      - /dev/davinci0:/dev/davinci0
+      - /dev/davinci1:/dev/davinci1
+      - /dev/davinci2:/dev/davinci2
+      - /dev/davinci3:/dev/davinci3
+      - /dev/davinci4:/dev/davinci4
+      - /dev/davinci5:/dev/davinci5
+      - /dev/davinci6:/dev/davinci6
+      - /dev/davinci7:/dev/davinci7
+      - /dev/davinci_manager:/dev/davinci_manager
+      - /dev/devmm_svm:/dev/devmm_svm
+      - /dev/hisi_hdc:/dev/hisi_hdc
+
+    # Shared memory for large model training
+    shm_size: "16gb"
+
+    # Mount volumes
+    volumes:
+      - ./workspace:/workspace
+      - /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro
+
+    # Environment variables
+    environment:
+      - ASCEND_HOME=/usr/local/Ascend
+      - LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/driver/lib64
+      - GLOG_v=2
+
+    # Keep container running
+    stdin_open: true
+    tty: true
+
+    restart: unless-stopped
+
+  # Single NPU variant for development
+  mindspore-910b-dev:
+    extends:
+      service: mindspore-910b
+    container_name: mindspore-910b-dev
+    devices:
+      - /dev/davinci0:/dev/davinci0
+      - /dev/davinci_manager:/dev/davinci_manager
+      - /dev/devmm_svm:/dev/devmm_svm
+      - /dev/hisi_hdc:/dev/hisi_hdc
+    shm_size: "4gb"
+    environment:
+      - DEVICE_ID=0

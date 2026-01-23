@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ascend-docker-kit"
+version = "0.2.0"
+description = "DevOps toolkit for Huawei Ascend NPU environments"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.8"
+keywords = ["ascend", "npu", "docker", "devops", "huawei", "ai", "deep-learning"]
+authors = [
+    {name = "ADK Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Systems Administration",
+]
+
+dependencies = [
+    "pydantic>=2.0,<3.0",
+    "PyYAML>=6.0,<7.0",
+    "packaging>=23.0",
+    "Jinja2>=3.1,<4.0",
+    "click>=8.0,<9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.0",
+    "black>=23.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+    "types-PyYAML",
+]
+
+[project.scripts]
+adk = "adk:cli"
+
+[project.urls]
+Homepage = "https://github.com/ascend-docker-kit/adk"
+Documentation = "https://github.com/ascend-docker-kit/adk#readme"
+Repository = "https://github.com/ascend-docker-kit/adk"
+Issues = "https://github.com/ascend-docker-kit/adk/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["adk_core*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.j2", "*.sh"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311"]
+
+[tool.mypy]
+python_version = "3.8"
+strict = true
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

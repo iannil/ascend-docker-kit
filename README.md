@@ -1,6 +1,6 @@
 # Ascend Docker Kit (ADK)
 
-A DevOps toolkit for Huawei Ascend NPU environments that automates Docker environment configuration and resolves CANN/driver/framework version compatibility issues.
+A DevOps toolkit for Huawei Ascend NPU environments that automates Docker environment configuration and resolves complex CANN/driver/framework version compatibility issues.
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green)](LICENSE)
@@ -9,32 +9,35 @@ A DevOps toolkit for Huawei Ascend NPU environments that automates Docker enviro
 
 ---
 
-## Overview
+## Why ADK?
 
-In Ascend NPU environments, complex dependencies exist between CANN versions, driver versions, and PyTorch/MindSpore versions. ADK solves this problem through the following core features:
+In Ascend NPU environments, complex dependencies exist between CANN versions, driver versions, and PyTorch/MindSpore versions. A wrong combination can lead to cryptic errors or silent failures. ADK solves this problem by:
 
-- **Compatibility Matrix**: Structures scattered version compatibility information from Huawei's official documentation into a single source of truth
-- **Environment Analyzer**: Automatically detects host environment (NPU model, driver version, OS)
-- **Smart Recommendations**: Automatically recommends compatible CANN and framework versions based on current environment
+- **Structuring Compatibility Data**: Converting scattered Huawei documentation into a single source of truth
+- **Auto-detecting Environment**: Probing host NPU model, driver version, and OS automatically
+- **Smart Recommendations**: Suggesting compatible CANN and framework versions for your setup
+- **Generating Docker Builds**: Creating ready-to-use Dockerfiles with proper multi-stage builds
 
 ## Features
 
 | Feature | Description |
-| --------- | ------------- |
+|---------|-------------|
 | Environment Detection | Auto-detect NPU model (910A/910B/310P), driver version, OS distribution |
 | Compatibility Validation | Verify if current environment supports target CANN version |
-| Version Recommendation | Recommend optimal CANN and framework combinations based on driver version |
-| Framework Configuration | Get torch_npu version and installation method for PyTorch/MindSpore |
+| Version Recommendation | Recommend optimal CANN and framework combinations based on driver |
+| Dockerfile Generation | Generate multi-stage Dockerfiles for training/inference |
+| CLI Interface | Full-featured command-line tool for all operations |
 
 ### Supported Environments
 
-**NPU Models**: Atlas 910A / 910B / 910B2 / 910B3 / 310P / 310
-**Operating Systems**: Ubuntu 20.04/22.04/24.04, openEuler 22.03/24.03, Kylin V10
-**CPU Architectures**: x86_64, aarch64
+| Category | Supported Values |
+|----------|------------------|
+| **NPU Models** | Atlas 910A, 910B, 910B2, 910B3, 310P, 310 |
+| **Operating Systems** | Ubuntu 20.04/22.04/24.04, openEuler 22.03/24.03, Kylin V10 |
+| **CPU Architectures** | x86_64, aarch64 |
+| **Frameworks** | PyTorch (with torch_npu), MindSpore |
 
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
 # Clone the repository
@@ -45,7 +48,43 @@ cd ascend-docker-kit
 pip install -r requirements.txt
 ```
 
-### Basic Usage
+## Quick Start
+
+### CLI Usage
+
+ADK provides a comprehensive CLI for all operations:
+
+```bash
+# Show help
+python adk.py --help
+
+# Diagnose current environment
+python adk.py diagnose
+python adk.py diagnose --validate  # With compatibility check
+python adk.py diagnose --json      # JSON output
+
+# Query CANN versions
+python adk.py query cann           # List all versions
+python adk.py query cann 8.0.0     # Details for specific version
+python adk.py query cann --all     # Include deprecated versions
+
+# Query framework configuration
+python adk.py query framework 8.0.0 pytorch
+python adk.py query framework 8.0.0 mindspore
+
+# Validate environment for specific CANN version
+python adk.py validate 8.0.0
+
+# Generate Dockerfile and build scripts
+python adk.py build init \
+  --cann 8.0.0 \
+  --framework pytorch \
+  --target train \
+  --python 3.10 \
+  -o ./build
+```
+
+### Python API
 
 #### 1. Detect Host Environment
 
@@ -77,13 +116,9 @@ Driver Version: 24.1.rc1
 ```python
 from adk_core import EnvironmentAnalyzer, CompatibilityResolver
 
-# Detect environment
 env = EnvironmentAnalyzer.analyze()
-
-# Load compatibility matrix
 resolver = CompatibilityResolver.from_yaml('data/compatibility.yaml')
 
-# Validate compatibility
 result = resolver.validate_environment(env)
 
 if result.valid:
@@ -105,29 +140,29 @@ config = resolver.get_framework_config("8.0.0", "pytorch")
 print(f"PyTorch Version: {config.version}")
 print(f"torch_npu Version: {config.torch_npu_version}")
 print(f"Supported Python Versions: {config.python_versions}")
-print(f"Download URL: {config.whl_url}")
 ```
 
-#### 4. Get Recommended Versions
+#### 4. Generate Dockerfile
 
 ```python
-from adk_core import CompatibilityResolver
+from adk_core import DockerfileGenerator, CompatibilityResolver
+from adk_core.generator import BuildTarget, FrameworkType
 
 resolver = CompatibilityResolver.from_yaml('data/compatibility.yaml')
+generator = DockerfileGenerator(resolver)
 
-# Get recommended CANN version based on driver version
-recommended = resolver.get_recommended_cann(
-    driver_version="24.1.0",
-    os_name="ubuntu22.04",
-    npu_type="910B"
+context = generator.create_context(
+    cann_version="8.0.0",
+    framework=FrameworkType.PYTORCH,
+    target=BuildTarget.TRAIN,
+    python_version="3.10"
 )
 
-print(f"Recommended CANN Version: {recommended}")  # 8.0.0
+output = generator.generate(context)
+generator.write_output(output, "./build/")
 ```
 
 ### Shell Script Detection
-
-You can also use the shell script to detect NPU information directly:
 
 ```bash
 bash scripts/check_npu.sh
@@ -144,14 +179,80 @@ JSON output:
 }
 ```
 
+## Examples
+
+Ready-to-use examples are provided in the `examples/` directory:
+
+### PyTorch 2.4 + 910B
+
+```bash
+cd examples/pytorch-2.4-910b
+
+# Build the image
+docker build -t pytorch-910b:2.4 .
+
+# Run container with NPU access
+./run.sh
+
+# Verify NPU inside container
+python test_npu.py
+```
+
+### MindSpore 2.3 + 910B
+
+```bash
+cd examples/mindspore-2.3-910b
+
+# Build and run
+docker build -t mindspore-910b:2.3 .
+./run.sh
+python test_npu.py
+```
+
+## CLI Reference
+
+### Global Options
+
+```bash
+python adk.py [OPTIONS] COMMAND
+
+Options:
+  --version              Show version
+  --matrix PATH          Path to compatibility matrix file
+  --help                 Show help message
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `diagnose` | Detect and display host environment information |
+| `validate CANN_VERSION` | Check if environment supports a CANN version |
+| `query cann [VERSION]` | List CANN versions or show details for one |
+| `query framework CANN FRAMEWORK` | Show framework config for CANN version |
+| `build init` | Generate Dockerfile and build scripts |
+
+### Build Command Options
+
+```bash
+python adk.py build init [OPTIONS]
+
+Options:
+  --cann VERSION         CANN version (required)
+  --framework TYPE       pytorch or mindspore (required)
+  --target TYPE          train or inference (default: train)
+  --python VERSION       Python version (default: auto-detect)
+  -o, --output PATH      Output directory (default: current)
+  --auto-detect          Auto-detect environment settings
+  --no-china-mirror      Disable China mirror for pip
+```
+
 ## API Reference
 
 ### EnvironmentAnalyzer
 
-Environment detector for detecting host environment information.
-
-| Method | Description | Return Value |
-| -------- | ------------- | -------------- |
+| Method | Description | Return |
+|--------|-------------|--------|
 | `analyze()` | Full environment detection | `EnvironmentInfo` |
 | `analyze_safe()` | Safe mode (no exceptions) | `(EnvironmentInfo, List[str])` |
 | `detect_os()` | Detect operating system | `str` |
@@ -160,82 +261,100 @@ Environment detector for detecting host environment information.
 
 ### CompatibilityResolver
 
-Compatibility resolver for querying version compatibility information.
-
 | Method | Description |
-| -------- | ------------- |
+|--------|-------------|
 | `from_yaml(path)` | Create instance from YAML file |
 | `list_cann_versions()` | List all CANN versions |
-| `find_compatible_cann(driver_version)` | Find compatible CANN versions |
-| `get_recommended_cann(driver_version)` | Get recommended CANN version |
+| `get_cann_requirements(version)` | Get requirements for CANN version |
+| `find_compatible_cann(driver)` | Find compatible CANN versions |
 | `validate_environment(env)` | Validate environment compatibility |
-| `get_framework_config(cann_version, framework)` | Get framework configuration |
+| `get_framework_config(cann, framework)` | Get framework configuration |
+
+### DockerfileGenerator
+
+| Method | Description |
+|--------|-------------|
+| `create_context(...)` | Create build context |
+| `generate(context)` | Generate Dockerfile content |
+| `write_output(output, path)` | Write files to directory |
 
 ### Data Models
 
 ```python
 class EnvironmentInfo:
-    driver_version: str   # NPU driver version
-    os_name: str          # Operating system (e.g., ubuntu22.04)
-    npu_type: str         # NPU model (e.g., 910B)
-    arch: str             # CPU architecture (x86_64/aarch64)
-    npu_count: int        # Number of NPUs
-    firmware_version: Optional[str]  # Firmware version
+    driver_version: str       # NPU driver version
+    os_name: str              # Operating system (e.g., ubuntu22.04)
+    npu_type: str             # NPU model (e.g., 910B)
+    arch: str                 # CPU architecture (x86_64/aarch64)
+    npu_count: int            # Number of NPUs
+    firmware_version: Optional[str]
 
 class ValidationResult:
-    valid: bool                        # Whether valid
-    compatible_cann_versions: List[str]  # List of compatible CANN versions
-    errors: List[str]                  # Error messages
-    warnings: List[str]                # Warning messages
+    valid: bool
+    compatible_cann_versions: List[str]
+    errors: List[str]
+    warnings: List[str]
 ```
 
 ### Exception Classes
 
-| Exception | Description |
-| ----------- | ------------- |
-| `EnvironmentDetectionError` | Environment detection failed |
-| `DriverNotInstalledError` | NPU driver not installed |
-| `NPUNotDetectedError` | No NPU device detected |
-| `VersionNotFoundError` | Version not found |
-| `DriverIncompatibleError` | Driver version incompatible |
-| `OSNotSupportedError` | Operating system not supported |
+All exceptions inherit from `ADKError` and include a `suggestions` list.
+
+| Exception | Raised When |
+|-----------|-------------|
+| `EnvironmentDetectionError` | `/etc/os-release` missing or unreadable |
+| `DriverNotInstalledError` | `npu-smi` command not found |
+| `NPUNotDetectedError` | No NPU devices found |
+| `ConfigurationError` | YAML file invalid or missing |
+| `VersionNotFoundError` | CANN version not in matrix |
+| `DriverIncompatibleError` | Driver version outside supported range |
+| `OSNotSupportedError` | OS not supported by CANN version |
 | `NPUNotSupportedError` | NPU model not supported |
+| `FrameworkNotFoundError` | Framework not available for CANN version |
 
 ## Project Structure
 
 ```
 ascend-docker-kit/
+├── adk.py                       # CLI entry point
 ├── adk_core/                    # Core library
 │   ├── __init__.py              # Module exports
 │   ├── analyzer.py              # Environment analyzer
 │   ├── matrix.py                # Compatibility resolver
-│   ├── models.py                # Data models
+│   ├── generator.py             # Dockerfile generator
+│   ├── models.py                # Data models (Pydantic v2)
 │   ├── exceptions.py            # Exception definitions
 │   └── version.py               # Version utilities
 ├── data/
 │   └── compatibility.yaml       # Compatibility matrix data
+├── templates/                   # Jinja2 Dockerfile templates
+│   ├── Dockerfile.base.j2
+│   ├── Dockerfile.cann.j2
+│   └── Dockerfile.pytorch.j2
 ├── scripts/
-│   └── check_npu.sh             # NPU detection script
+│   ├── check_npu.sh             # NPU detection script
+│   └── install_cann.sh          # CANN silent installation
+├── examples/                    # Ready-to-use examples
+│   ├── pytorch-2.4-910b/
+│   └── mindspore-2.3-910b/
 ├── tests/                       # Unit tests
-│   ├── test_analyzer.py
-│   └── test_matrix.py
 ├── docs/                        # Documentation
-├── requirements.txt             # Dependencies
-└── README.md
+├── pyproject.toml               # Project configuration
+└── requirements.txt             # Dependencies
 ```
 
 ## Compatibility Matrix
 
-Compatibility data is stored in `data/compatibility.yaml`, containing the following CANN versions:
+The compatibility data in `data/compatibility.yaml` includes:
 
-| CANN Version | Min Driver Version | PyTorch | MindSpore | Status |
-| -------------- | ------------------- | --------- | ----------- | -------- |
+| CANN Version | Min Driver | PyTorch | MindSpore | Status |
+|--------------|------------|---------|-----------|--------|
 | 8.0.0 | 24.1.rc1 | 2.4.0 | 2.3.0 | Stable |
 | 8.0.0rc3 | 24.1.rc1 | 2.3.1 | 2.2.14 | RC |
 | 7.0.0 | 23.0.3 | 2.1.0 | 2.2.0 | Stable |
 | 6.3.0 | 22.0.4 | 1.11.0 | 1.10.1 | Deprecated |
 
-## Development Guide
+## Development
 
 ### Running Tests
 
@@ -253,7 +372,7 @@ pytest tests/ -v
 
 ### Adding New CANN Versions
 
-Edit `data/compatibility.yaml` to add new version configuration:
+Edit `data/compatibility.yaml`:
 
 ```yaml
 cann_versions:
@@ -278,25 +397,19 @@ cann_versions:
 
 ## Roadmap
 
-**Overall Progress: ~50%**
+### Completed ✅
 
-### Phase 1: Core Layer ✅ Completed
-- [x] **Compatibility Matrix Library** - `matrix.py` (428 lines, 23 tests passed)
-- [x] **Environment Analyzer** - `analyzer.py` (408 lines, 36 tests passed)
-- [x] **Data Models** - Pydantic v2 type definitions
-- [x] **Exception Handling** - 11 custom exception classes
-- [x] **Version Utilities** - PEP 440 compliant version comparison
-- [x] **NPU Detection Script** - `scripts/check_npu.sh` (JSON output)
+- **Core Layer**: Compatibility matrix, environment analyzer, data models
+- **Build Layer**: Dockerfile generator, Jinja2 templates, CLI interface
+- **Examples**: PyTorch and MindSpore ready-to-use configurations
+- **Quality**: 59+ test cases, type annotations, exception handling
 
-### Phase 2: Build Layer 🚧 In Progress
-- [ ] **Image Build Generator** - Dockerfile rendering with Jinja2 templates
-- [ ] **Dockerfile Templates** - base, CANN, PyTorch/MindSpore multi-stage builds
-- [ ] **CANN Installation Script** - Silent installation automation
-- [ ] **Run Parameter Generator** - Docker run command generation with device mapping
+### Planned 📋
 
-### Phase 3: User Interface 📋 Planned
-- [ ] **CLI Tool** - Command-line interface with Click
-- [ ] **Examples** - Ready-to-use PyTorch/MindSpore configurations
+- [ ] MindSpore Dockerfile templates
+- [ ] Integration tests on real NPU hardware
+- [ ] PyPI package distribution
+- [ ] GUI tool for visual configuration
 
 ## Contributing
 
@@ -317,6 +430,7 @@ This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE
 - [Huawei Ascend Official Website](https://www.hiascend.com/)
 - [CANN Documentation](https://www.hiascend.com/document)
 - [Ascend PyTorch](https://gitee.com/ascend/pytorch)
+- [Ascend MindSpore](https://www.mindspore.cn/)
 
 ## Acknowledgments
 
