@@ -400,13 +400,12 @@ cann_versions:
 ### Completed ✅
 
 - **Core Layer**: Compatibility matrix, environment analyzer, data models
-- **Build Layer**: Dockerfile generator, Jinja2 templates, CLI interface
+- **Build Layer**: Dockerfile generator, Jinja2 templates (PyTorch & MindSpore), CLI interface
 - **Examples**: PyTorch and MindSpore ready-to-use configurations
-- **Quality**: 59+ test cases, type annotations, exception handling
+- **Quality**: 90+ test cases, type annotations, exception handling
 
 ### Planned 📋
 
-- [ ] MindSpore Dockerfile templates
 - [ ] Integration tests on real NPU hardware
 - [ ] PyPI package distribution
 - [ ] GUI tool for visual configuration

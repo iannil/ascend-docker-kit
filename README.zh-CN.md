@@ -400,13 +400,12 @@ cann_versions:
 ### 已完成 ✅
 
 - **核心层**：兼容性矩阵、环境诊断器、数据模型
-- **构建层**：Dockerfile 生成器、Jinja2 模板、CLI 接口
+- **构建层**：Dockerfile 生成器、Jinja2 模板（PyTorch 和 MindSpore）、CLI 接口
 - **示例**：PyTorch 和 MindSpore 即用配置
-- **质量保证**：59+ 测试用例、类型注解、异常处理
+- **质量保证**：90+ 测试用例、类型注解、异常处理
 
 ### 计划中 📋
 
-- [ ] MindSpore Dockerfile 模板
 - [ ] 真实 NPU 硬件的集成测试
 - [ ] PyPI 包发布
 - [ ] 可视化配置的 GUI 工具

@@ -55,6 +55,7 @@ class BuildContext:
     framework_version: Optional[str] = None
     torch_npu_version: Optional[str] = None
     torch_npu_whl_url: Optional[str] = None
+    install_command: Optional[str] = None
 
     # CANN package filenames (user must provide)
     cann_toolkit_filename: Optional[str] = None
@@ -89,6 +90,7 @@ class BuildContext:
             "pytorch_version": self.framework_version,  # Alias for PyTorch template
             "torch_npu_version": self.torch_npu_version,
             "torch_npu_whl_url": self.torch_npu_whl_url,
+            "install_command": self.install_command,
             "cann_toolkit_filename": self.cann_toolkit_filename,
             "cann_kernels_filename": self.cann_kernels_filename,
             "base_image": self.base_image,
@@ -279,6 +281,7 @@ class DockerfileGenerator:
             framework_version=framework_config.version,
             torch_npu_version=framework_config.torch_npu_version,
             torch_npu_whl_url=whl_url,
+            install_command=framework_config.install_command,
         )
 
         # Apply environment info if provided
